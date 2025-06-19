@@ -1,42 +1,45 @@
-#include <iostream>
-#include <cmath>
-#include <omp.h>
+#include <iostream>  // Для виводу в консоль
+#include <cmath>     // Для fabs()
+#include <omp.h>     // Для OpenMP та omp_get_wtime()
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
+// Функція, яку інтегруємо: f(x) = x^2
 double f(double x) {
-    return sin(x);
+    return x * x;
 }
 
-double rectangle_integral_openmp(double a, double b, int n) {
-    double h = (b - a) / n;
-    double sum = 0.0;
 
+// Обчислення інтегралу методом прямокутників (паралельно за допомогою OpenMP)
+double rectangle_integral_openmp(double a, double b, int n) {
+    double h = (b - a) / n;  // Крок інтегрування
+    double sum = 0.0;        // Змінна для накопичення суми
+
+    // Паралельне виконання циклу з редукцією (підсумовування результатів з потоків)
 #pragma omp parallel for reduction(+:sum)
     for (int i = 0; i < n; ++i) {
-        double x = a + i * h;
-        sum += f(x);
+        double x = a + i * h;  // Координата лівого краю прямокутника
+        sum += f(x);           // Додавання площі прямокутника до локальної суми
     }
 
-    return h * sum;
+    return h * sum;  // Остаточне значення інтегралу
 }
 
+
 int main() {
-    int n = 10000000;
-    double a = 0.0, b = M_PI;
-    double true_value = 2.0;
+    int n = 10000000;      // Кількість прямокутників (точність)
+    double a = 0.0, b = 1.0; // Межі інтегрування [0;1]
+    double true_value = 1.0 / 3.0; // Аналітичне значення інтегралу
 
     std::cout << "=== OPENMP ===\n";
     std::cout << "n = " << n << "\n";
 
-    double start_time = omp_get_wtime();
-    double result = rectangle_integral_openmp(a, b, n);
-    double end_time = omp_get_wtime();
+    double start_time = omp_get_wtime();              // Початок заміру часу
+    double result = rectangle_integral_openmp(a, b, n); // Обчислення інтегралу паралельно
+    double end_time = omp_get_wtime();                // Кінець заміру часу
 
-    double abs_error = fabs(true_value - result);
+    double abs_error = fabs(true_value - result);     // Абсолютна похибка
 
+    // Вивід результатів
     std::cout << "Result: " << result << "\n";
     std::cout << "True Value: " << true_value << "\n";
     std::cout << "Absolute Error: " << abs_error << "\n";
