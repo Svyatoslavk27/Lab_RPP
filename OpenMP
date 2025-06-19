@@ -1,49 +1,50 @@
-#include <iostream>  // Для виводу в консоль
-#include <cmath>     // Для fabs()
-#include <omp.h>     // Для OpenMP та omp_get_wtime()
+#include <iostream>    // введення/виведення
+#include <cmath>       // математичні функції
+#include <omp.h>       // OpenMP (для паралельних обчислень)
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
-// Функція, яку інтегруємо: f(x) = x^2
+// Функція, яку інтегруємо
 double f(double x) {
-    return x * x;
+	return sin(x);
 }
 
-
-// Обчислення інтегралу методом прямокутників (паралельно за допомогою OpenMP)
+// Паралельне обчислення інтегралу методом прямокутників з використанням OpenMP
 double rectangle_integral_openmp(double a, double b, int n) {
-    double h = (b - a) / n;  // Крок інтегрування
-    double sum = 0.0;        // Змінна для накопичення суми
+	double h = (b - a) / n; // ширина прямокутника
+	double sum = 0.0;       // сума значень функції
 
-    // Паралельне виконання циклу з редукцією (підсумовування результатів з потоків)
+	// Паралельний цикл. reduction(+:sum) дозволяє коректно сумувати результати з різних потоків
 #pragma omp parallel for reduction(+:sum)
-    for (int i = 0; i < n; ++i) {
-        double x = a + i * h;  // Координата лівого краю прямокутника
-        sum += f(x);           // Додавання площі прямокутника до локальної суми
-    }
+	for (int i = 0; i < n; ++i) {
+		double x = a + i * h;
+		sum += f(x);
+	}
 
-    return h * sum;  // Остаточне значення інтегралу
+	return h * sum; // результат — площа під графіком
 }
-
 
 int main() {
-    int n = 10000000;      // Кількість прямокутників (точність)
-    double a = 0.0, b = 1.0; // Межі інтегрування [0;1]
-    double true_value = 1.0 / 3.0; // Аналітичне значення інтегралу
+	int n = 10000000;        // кількість підінтервалів
+	double a = 0.0, b = M_PI; // межі інтегрування
+	double true_value = 2.0;   // точне значення
 
-    std::cout << "=== OPENMP ===\n";
-    std::cout << "n = " << n << "\n";
+	std::cout << "=== OPENMP ===\n";
+	std::cout << "n = " << n << "\n";
 
-    double start_time = omp_get_wtime();              // Початок заміру часу
-    double result = rectangle_integral_openmp(a, b, n); // Обчислення інтегралу паралельно
-    double end_time = omp_get_wtime();                // Кінець заміру часу
+	double start_time = omp_get_wtime(); // початок вимірювання часу
+	double result = rectangle_integral_openmp(a, b, n); // викликаємо паралельну функцію
+	double end_time = omp_get_wtime();   // завершення
 
-    double abs_error = fabs(true_value - result);     // Абсолютна похибка
+	double abs_error = fabs(true_value - result); // абсолютна похибка
 
-    // Вивід результатів
-    std::cout << "Result: " << result << "\n";
-    std::cout << "True Value: " << true_value << "\n";
-    std::cout << "Absolute Error: " << abs_error << "\n";
-    std::cout << "Execution Time: " << (end_time - start_time) << " sec\n";
+	// Виводимо результати
+	std::cout << "Result: " << result << "\n";
+	std::cout << "True Value: " << true_value << "\n";
+	std::cout << "Absolute Error: " << abs_error << "\n";
+	std::cout << "Execution Time: " << (end_time - start_time) << " sec\n";
 
-    return 0;
+	return 0;
 }
