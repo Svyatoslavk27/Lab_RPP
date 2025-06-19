@@ -1,65 +1,66 @@
-#include <iostream>  // Для виводу в консоль
-#include <cmath>     // Для fabs()
-#include <mpi.h>     // Для роботи з MPI
+#include <iostream>   // введення/виведення
+#include <cmath>      // математичні функції
+#include <mpi.h>      // бібліотека MPI для паралельного програмування між процесами
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
-// Функція, яку інтегруємо: f(x) = x^2
+// Функція, яку інтегруємо
 double f(double x) {
-    return x * x;
+	return sin(x);
 }
 
-
-// Обчислення локальної частини інтегралу для одного процесу
+// Обчислення частини інтегралу для одного процесу
 double local_rectangle(double local_a, int local_n, double h) {
-    double sum = 0.0;
-
-    for (int i = 0; i < local_n; ++i) {
-        double x = local_a + i * h;  // Координата лівого краю прямокутника
-        sum += f(x);                 // Додавання площі прямокутника до локальної суми
-    }
-
-    return h * sum;  // Локальне значення інтегралу
+	double sum = 0.0;
+	for (int i = 0; i < local_n; ++i) {
+		double x = local_a + i * h;
+		sum += f(x);
+	}
+	return h * sum;
 }
-
 
 int main(int argc, char* argv[]) {
-    int n = 10000000;      // Кількість прямокутників (точність)
-    double a = 0.0, b = 1.0; // Межі інтегрування [0;1]
-    double h = (b - a) / n; // Крок інтегрування
-    double true_value = 1.0 / 3.0; // Аналітичне значення інтегралу
+	int n = 10000000;       // кількість підінтервалів
+	double a = 0.0, b = M_PI;
+	double h = (b - a) / n; // ширина підінтервалу
+	double true_value = 2.0;
 
-    MPI_Init(&argc, &argv);  // Ініціалізація MPI
-    int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank); // Отримання номера поточного процесу (rank)
-    MPI_Comm_size(MPI_COMM_WORLD, &size); // Отримання загальної кількості процесів (size)
+	// Ініціалізація MPI
+	MPI_Init(&argc, &argv);
+	int rank, size;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank); // отримуємо ранг поточного процесу
+	MPI_Comm_size(MPI_COMM_WORLD, &size); // отримуємо загальну кількість процесів
 
-    int local_n = n / size;                       // Кількість прямокутників для кожного процесу
-    double local_a = a + rank * local_n * h;      // Початок ділянки для поточного процесу
+	int local_n = n / size;             // підінтервалів для кожного процесу
+	double local_a = a + rank * local_n * h; // початкова точка інтегрування для цього процесу
 
-    MPI_Barrier(MPI_COMM_WORLD);  // Синхронізація процесів перед заміром часу
-    double start_time = MPI_Wtime(); // Початок заміру часу
+	MPI_Barrier(MPI_COMM_WORLD); // синхронізуємо всі процеси перед початком вимірювання часу
+	double start_time = MPI_Wtime(); // початок вимірювання часу
 
-    double local_result = local_rectangle(local_a, local_n, h); // Обчислення локального інтегралу
-    double global_result = 0.0;  // Змінна для зберігання загального результату (на процесі 0)
+	// Кожен процес обчислює свою частину інтегралу
+	double local_result = local_rectangle(local_a, local_n, h);
+	double global_result = 0.0;
 
-    // Збирання результатів з усіх процесів у процес 0 (додавання результатів)
-    MPI_Reduce(&local_result, &global_result, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	// Збираємо всі локальні результати у процес з рангом 0
+	MPI_Reduce(&local_result, &global_result, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
-    double end_time = MPI_Wtime(); // Кінець заміру часу
+	double end_time = MPI_Wtime(); // завершення вимірювання часу
 
-    if (rank == 0) {
-        double abs_error = fabs(true_value - global_result); // Абсолютна похибка
+	// Вивід результатів виконує лише процес з рангом 0
+	if (rank == 0) {
+		double abs_error = fabs(true_value - global_result); // абсолютна похибка
 
-        // Вивід результатів (на процесі 0)
-        std::cout << "=== MPI ===\n";
-        std::cout << "Processes: " << size << "\n";
-        std::cout << "n = " << n << "\n";
-        std::cout << "Result: " << global_result << "\n";
-        std::cout << "True Value: " << true_value << "\n";
-        std::cout << "Absolute Error: " << abs_error << "\n";
-        std::cout << "Execution Time: " << (end_time - start_time) << " sec\n";
-    }
+		std::cout << "=== MPI ===\n";
+		std::cout << "Processes: " << size << "\n"; // кількість процесів
+		std::cout << "n = " << n << "\n";
+		std::cout << "Result: " << global_result << "\n";
+		std::cout << "True Value: " << true_value << "\n";
+		std::cout << "Absolute Error: " << abs_error << "\n";
+		std::cout << "Execution Time: " << (end_time - start_time) << " sec\n";
+	}
 
-    MPI_Finalize();  // Завершення роботи MPI
-    return 0;
+	MPI_Finalize(); // завершення роботи MPI
+	return 0;
 }
