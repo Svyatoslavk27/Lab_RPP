@@ -1,0 +1,46 @@
+#include <iostream>
+#include <cmath>
+#include <omp.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+double f(double x) {
+    return sin(x);
+}
+
+double rectangle_integral_openmp(double a, double b, int n) {
+    double h = (b - a) / n;
+    double sum = 0.0;
+
+#pragma omp parallel for reduction(+:sum)
+    for (int i = 0; i < n; ++i) {
+        double x = a + i * h;
+        sum += f(x);
+    }
+
+    return h * sum;
+}
+
+int main() {
+    int n = 10000000;
+    double a = 0.0, b = M_PI;
+    double true_value = 2.0;
+
+    std::cout << "=== OPENMP ===\n";
+    std::cout << "n = " << n << "\n";
+
+    double start_time = omp_get_wtime();
+    double result = rectangle_integral_openmp(a, b, n);
+    double end_time = omp_get_wtime();
+
+    double abs_error = fabs(true_value - result);
+
+    std::cout << "Result: " << result << "\n";
+    std::cout << "True Value: " << true_value << "\n";
+    std::cout << "Absolute Error: " << abs_error << "\n";
+    std::cout << "Execution Time: " << (end_time - start_time) << " sec\n";
+
+    return 0;
+}
